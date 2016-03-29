@@ -24,6 +24,8 @@ import fr.univavignon.courbes.common.Constants;
 import fr.univavignon.courbes.common.ItemInstance;
 import fr.univavignon.courbes.common.ItemType;
 import fr.univavignon.courbes.common.Snake;
+import fr.univavignon.courbes.sounds.Audio;
+import fr.univavignon.courbes.sounds.AudioHandle;
 
 /**
  * Classe fille de {@link ItemInstance}, permettant d'intégrer
@@ -34,6 +36,8 @@ import fr.univavignon.courbes.common.Snake;
 public class PhysItemInstance extends ItemInstance
 {	/** Numéro de série (pour {@code Serializable}) */
 	private static final long serialVersionUID = 1L;
+	/** Compteur pour attribuer des numéros uniques aux items */
+	private static int ID_COUNT = 0;
 	/** Générateur aléatoire utilisé lors de l'apparition d'items */
 	private static final Random RANDOM = new Random();
 	
@@ -48,7 +52,9 @@ public class PhysItemInstance extends ItemInstance
 	 * 		Position en ordonnée.
 	 */
 	public PhysItemInstance(ItemType type, int x, int y)
-	{	init(type,x,y);
+	{	
+		
+		init(type,x,y);
 	}
 	
 	/**
@@ -60,10 +66,12 @@ public class PhysItemInstance extends ItemInstance
 	 * 		Position en ordonnée.
 	 */
 	public PhysItemInstance(int x, int y)
-	{	// tirage au sort du type d'item
+	{	
+		AudioHandle a = new Audio();
+		a.ItemCreated();
+		// tirage au sort du type d'item
 		int idx = RANDOM.nextInt(ItemType.values().length);
 		ItemType type = ItemType.values()[idx];
-		
 		// on finit l'init
 		init(type,x,y);
 	}
@@ -81,8 +89,14 @@ public class PhysItemInstance extends ItemInstance
 		this.y = item.y;
 		this.type = item.type;
 		this.remainingTime = item.remainingTime;
+		
+		// classe PhysItemInstance
+		this.itemId = item.itemId;
 	}
-
+	
+	/** Numéro de l'item (utilisé pour le mode réseau) */
+	public int itemId;
+	
 	/**
 	 * Initialise un item.
 	 * 
@@ -94,7 +108,9 @@ public class PhysItemInstance extends ItemInstance
 	 * 		Position en ordonnée.
 	 */
 	private void init(ItemType type, int x, int y)
-	{	this.type = type;
+	{	this.itemId = ID_COUNT++;
+		
+		this.type = type;
 		this.x = x;
 		this.y = y;
 		
@@ -110,8 +126,11 @@ public class PhysItemInstance extends ItemInstance
 	 * 		{@code true} ssi l'item est arrivé en fin de vie et doit disparaitre.
 	 */
 	public boolean updateLife(long elapsedTime)
-	{	remainingTime = remainingTime - elapsedTime;
-		boolean remove = remainingTime<0;
+	{	boolean remove = false;
+		if(remainingTime>0)
+		{	remainingTime = remainingTime - elapsedTime;
+			remove = remainingTime<0;
+		}
 		return remove;
 	}
 	
@@ -209,15 +228,37 @@ public class PhysItemInstance extends ItemInstance
 			board.mustClean = true;
 	
 		// item collectif avec effet dans la durée
-		else if(type==ItemType.COLLECTIVE_TRAVERSE || type==ItemType.COLLECTIVE_WEALTH)
+		else if(type==ItemType.COLLECTIVE_TRAVERSE)
+		{	remainingTime = type.duration;
+			board.currentItems.add(this);
+			// doit quand même être rajouté à chaque serpent, pour des raisons graphiques
+			for(Snake s: board.snakes)
+			{	if(s.eliminatedBy==null)
+				{	PhysItemInstance item = new PhysItemInstance(this);
+					s.currentItems.offer(item);
+				}
+			}
+		}
+		else if(type==ItemType.COLLECTIVE_WEALTH)
 		{	remainingTime = type.duration;
 			board.currentItems.add(this);
 		}
 		
 		// item individuel visant le ramasseur
 		else if(type==ItemType.USER_FAST || type==ItemType.USER_FLY || type==ItemType.USER_SLOW)
-		{	remainingTime = type.duration;
-			snake.currentItems.offer(this);
+		{	
+			/*if(type==ItemType.USER_FAST){
+				AudioHandle a = new Audio("res/sounds/fast.wav");
+				a.start();
+			}
+			else if (type==ItemType.USER_SLOW)
+			{
+				AudioHandle a = new Audio("res/sounds/slow.wav");
+				a.start();
+				
+			}*/
+			remainingTime = type.duration;
+			snake.currentItems.offer(this);	
 		}
 		
 		// item individuel visant les joueurs autres que le ramasseur

@@ -32,6 +32,9 @@ import fr.univavignon.courbes.common.Direction;
 import fr.univavignon.courbes.common.ItemInstance;
 import fr.univavignon.courbes.common.Position;
 import fr.univavignon.courbes.common.Snake;
+import fr.univavignon.courbes.inter.simpleimpl.SettingsManager;
+import fr.univavignon.courbes.sounds.Audio;
+import fr.univavignon.courbes.sounds.AudioHandle;
 
 /**
  * Classe fille de {@link Snake}, permettant d'intégrer
@@ -60,12 +63,14 @@ public class PhysSnake extends Snake
 		movingSpeed = Constants.BASE_MOVING_SPEED;
 		resetCharacs();
 		
+		int boardWidth = SettingsManager.getBoardWidth();
+		int boardHeight = SettingsManager.getBoardHeight();
 		Random random = new Random();
-		int marginX = Constants.BOARD_WIDTH / 10;	// marge de sécurité: un dixième de l'aire de jeu
-		currentX = random.nextInt(Constants.BOARD_WIDTH-2*marginX) + marginX; // on tire une valeur entre margin et width-1-margin
+		int marginX = boardWidth / 10;	// marge de sécurité: un dixième de l'aire de jeu
+		currentX = random.nextInt(boardWidth-2*marginX) + marginX; // on tire une valeur entre margin et width-1-margin
 		realX = currentX;
-		int marginY = Constants.BOARD_HEIGHT / 10;
-		currentY = random.nextInt(Constants.BOARD_HEIGHT-2*marginY) + marginY;	// pareil entre margin et height-1-margin
+		int marginY = boardHeight / 10;
+		currentY = random.nextInt(boardHeight-2*marginY) + marginY;	// pareil entre margin et height-1-margin
 		realY = currentY;
 		prevPos = new Position(currentX,currentY);
 		
@@ -76,6 +81,7 @@ public class PhysSnake extends Snake
 		currentAngle = (float)(Math.random()*Math.PI*2);	// on tire une valeur réelle entre 0 et 2pi
 				
 		eliminatedBy = null;
+		connected = true;
 		
 		remainingHole = 0;
 		timeSinceLastHole = 0;
@@ -159,7 +165,7 @@ public class PhysSnake extends Snake
 		this.prevPos = new Position(snake.prevPos);
 	}
 
-	/** Ancienne partie de la trainée du serpent sur l'aire de jeu */
+	/** Ancienne section de la trainée du serpent sur l'aire de jeu */
 	public Set<Position> oldTrail;
 	/** Nombre de pixels restants pour terminer le trou courant */
 	private float remainingHole;
@@ -190,7 +196,7 @@ public class PhysSnake extends Snake
 		turningSpeed = Constants.BASE_TURNING_SPEED;
 
 		// connection
-		connected = true;
+//		connected = true;
 		
 		// commandes
 		inversion = false;
@@ -342,6 +348,8 @@ public class PhysSnake extends Snake
 	 */
 	private boolean detectCollisions(PhysBoard board, Set<Position> physicalTrail)
 	{	boolean result = false;
+		int boardWidth = SettingsManager.getBoardWidth();
+		int boardHeight = SettingsManager.getBoardHeight();
 		
 		// on traite d'abord les items
 		// TODO en supposant qu'on ne peut en toucher qu'un seul en une itération
@@ -358,9 +366,12 @@ public class PhysSnake extends Snake
 					double dist = Math.sqrt(Math.pow(item.x-pos.x,2)+Math.pow(item.y-pos.y,2));
 					if(dist<=Constants.ITEM_RADIUS)
 					{	// on indique qu'on a touché un item (pour sortir des deux boucles)
+						AudioHandle a = new Audio();
+						a.ItemCollision();
 						itemCollided = true;
 						// on le sort de la liste des items encore en jeu
 						it.remove();
+						board.removedItems.add(item.itemId);
 						// on le ramasse
 						item.pickUp(board,this);
 					}
@@ -374,10 +385,12 @@ public class PhysSnake extends Snake
 			while(it.hasNext())
 			{	Position pos = it.next();
 				if(pos.y<=Constants.BORDER_THICKNESS
-					|| pos.y>=Constants.BOARD_HEIGHT-Constants.BORDER_THICKNESS
+					|| pos.y>=boardHeight-Constants.BORDER_THICKNESS
 					|| pos.x<=Constants.BORDER_THICKNESS
-					|| pos.x>=Constants.BOARD_WIDTH-Constants.BORDER_THICKNESS)
+					|| pos.x>=boardWidth-Constants.BORDER_THICKNESS)
 				{	// on marque la collision
+					AudioHandle son = new Audio();
+					son.CollisionSound();
 					eliminatedBy = -1;
 					result = true;
 					// on restreint la nouvelle position du serpent
@@ -395,7 +408,10 @@ public class PhysSnake extends Snake
 				{	boolean changed = physicalTrail.removeAll(snake.oldTrail)
 						|| physicalTrail.removeAll(snake.newTrail);
 					if(changed)
-					{	eliminatedBy = i;
+					{	
+						AudioHandle son = new Audio();
+						son.CollisionSound();
+						eliminatedBy = i;
 						result = true;
 					}
 				}

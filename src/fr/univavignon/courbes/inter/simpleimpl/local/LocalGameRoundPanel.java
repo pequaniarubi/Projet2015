@@ -26,6 +26,8 @@ import fr.univavignon.courbes.common.Direction;
 import fr.univavignon.courbes.inter.simpleimpl.AbstractRoundPanel;
 import fr.univavignon.courbes.inter.simpleimpl.MainWindow;
 import fr.univavignon.courbes.inter.simpleimpl.MainWindow.PanelName;
+import fr.univavignon.courbes.sounds.Audio;
+import fr.univavignon.courbes.sounds.AudioHandle;
 
 /**
  * Panel utilisé pour afficher le jeu proprement dit,
@@ -50,7 +52,10 @@ public class LocalGameRoundPanel extends AbstractRoundPanel
 
 	@Override
 	public void run()
-	{	playMatch();
+	{	
+		
+		
+		playMatch();
 		
 		// TODO la mise à jour des stats devrait être faite ici
 		
@@ -67,7 +72,8 @@ public class LocalGameRoundPanel extends AbstractRoundPanel
 		long elapsedPhysTime = 0;						// temps écoulé depuis la dernière màj physique
 		long elapsedGraphTime = 0;						// temps écoulé depuis la dernière màj graphique
 		long previousTime = System.currentTimeMillis();	// date de l'itération précédente
-		long finalCount = 0;							// décompte pour la toute fin de partie
+		long finalCount = 0;							// décompte pour la toute fin de manche
+		boolean finished = false;						// indique si la manche est finie, au sens des règles du jeu
 		
 		List<Integer> prevEliminated = new ArrayList<Integer>();
 		
@@ -99,9 +105,13 @@ public class LocalGameRoundPanel extends AbstractRoundPanel
 					physicsEngine.update(elapsedPhysTime, directions);
 					// on met à jour les scores
 					List<Integer> lastEliminated = physicsEngine.getEliminatedPlayers();
-					boolean finished = updatePoints(prevEliminated,lastEliminated);
-					if(finished)
-						finalCount = 1;
+					if(!finished)
+					{	finished = updatePoints(prevEliminated,lastEliminated);
+						if(finished)
+						{	finalCount = 1;
+							updatedEliminatedBy();
+						}
+					}
 					phyUpdateNbr++;
 					elapsedPhysTime = 0;
 				}

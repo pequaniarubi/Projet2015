@@ -34,6 +34,8 @@ import javax.swing.JPanel;
 
 import fr.univavignon.courbes.inter.simpleimpl.MainWindow.PanelName;
 import fr.univavignon.courbes.inter.simpleimpl.profiles.ProfileManager;
+import fr.univavignon.courbes.sounds.Audio;
+import fr.univavignon.courbes.sounds.AudioHandle;
 
 /**
  * Panel contenant le menu principal du jeu.
@@ -68,6 +70,8 @@ public class MainMenuPanel extends JPanel implements ActionListener
 	private JButton clientGameButton;
 	/** Bouton pour accéder à la liste des profils */
 	private JButton profilesButton;
+	/** Bouton pour accéder aux statistiques */
+	private JButton statsButton;
 	/** Bouton pour quitter le jeu */
 	private JButton quitButton;
 
@@ -101,6 +105,10 @@ public class MainMenuPanel extends JPanel implements ActionListener
 		// lister les profils existants
 		profilesButton = initButton("Voir les profils");
 		menuPanel.add(profilesButton);
+		
+		// afficher les statistiques
+		statsButton = initButton("Voir les statistiques");
+		menuPanel.add(statsButton);
 		
 		menuPanel.add(Box.createVerticalStrut(10));
 		
@@ -143,7 +151,11 @@ public class MainMenuPanel extends JPanel implements ActionListener
 	
 	@Override
 	public void actionPerformed(ActionEvent e)
-	{	if(e.getSource()==localGameButton)	
+	{	
+		AudioHandle a = new Audio();
+		a.Button();
+		
+		if(e.getSource()==localGameButton)	
 		{	if(ProfileManager.getProfiles().size() > 1)
 			{	mainWindow.displayPanel(PanelName.LOCAL_GAME_PLAYER_SELECTION);
 			}
@@ -175,6 +187,10 @@ public class MainMenuPanel extends JPanel implements ActionListener
 	
 		else if(e.getSource()==profilesButton)
 		{	mainWindow.displayPanel(PanelName.PROFILE_LIST);
+		}
+	
+		else if(e.getSource()==statsButton)
+		{	mainWindow.displayPanel(PanelName.STATISTICS);
 		}
 	
 		else if(e.getSource()==quitButton)

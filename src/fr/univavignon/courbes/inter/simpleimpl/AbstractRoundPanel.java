@@ -30,12 +30,15 @@ import fr.univavignon.courbes.common.Constants;
 import fr.univavignon.courbes.common.Player;
 import fr.univavignon.courbes.common.Profile;
 import fr.univavignon.courbes.common.Round;
+import fr.univavignon.courbes.common.Snake;
 import fr.univavignon.courbes.graphics.GraphicDisplay;
 import fr.univavignon.courbes.graphics.simpleimpl.GraphicDisplayImpl;
 import fr.univavignon.courbes.inter.simpleimpl.MainWindow;
 import fr.univavignon.courbes.inter.simpleimpl.local.KeyManager;
 import fr.univavignon.courbes.physics.PhysicsEngine;
 import fr.univavignon.courbes.physics.simpleimpl.PhysicsEngineImpl;
+import fr.univavignon.courbes.sounds.Audio;
+import fr.univavignon.courbes.sounds.AudioHandle;
 
 /**
  * Panel utilisé pour afficher le jeu proprement dit,
@@ -66,9 +69,13 @@ public abstract class AbstractRoundPanel extends JPanel implements Runnable
 	public AbstractRoundPanel(MainWindow mainWindow)
 	{	super();
 		
+
+		
 		this.mainWindow = mainWindow;
 		init();
 		start();
+		
+		
 	}
 	
 	/** Fenêtre principale du jeu */
@@ -93,8 +100,10 @@ public abstract class AbstractRoundPanel extends JPanel implements Runnable
 	protected boolean showStats = false;
 	/** Score total de chaque joueur */
 	protected int[] totalPoints;
-	/** Indique si la rencontre est finie, ou encore en cours */
+	/** Indique si la partie est finie, ou encore en cours */
 	protected boolean matchOver = false;
+	/** Indique quel serpent a été éliminé par quoi : {@code null} pour pas éliminé, une <i>valeur négative</i> pour la bordure, et {@code playerId} pour un serpent (possiblement le joueur lui-même) */
+	protected Integer[] eliminatedBy;
 	
 	/**
 	 * Initialise le panel et les objets qu'il utilise.
@@ -131,7 +140,11 @@ public abstract class AbstractRoundPanel extends JPanel implements Runnable
 	 * Effectue la partie tout entière, i.e. plusieurs manches.
 	 */
 	protected void playMatch()
-	{	totalPoints = new int[round.players.length];
+	{	
+		AudioHandle a = new Audio();
+		a.MusicInGame();
+		
+		totalPoints = new int[round.players.length];
 		Arrays.fill(totalPoints, 0);
 
 		do
@@ -151,11 +164,11 @@ public abstract class AbstractRoundPanel extends JPanel implements Runnable
 			}
 			matchOver = totalPoints[maxIdx]>=Constants.POINT_LIMIT_FOR_PLAYER_NBR.get(totalPoints.length);
 			
-			// on affiche éventuellement le vainqueur de la rencontre
+			// on affiche éventuellement le vainqueur de la partie
 			if(matchOver)
 			{	Profile profile = players[maxIdx].profile;
 				String name = profile.userName;
-				JOptionPane.showMessageDialog(mainWindow, "Le joueur "+name+"a gagné la rencontre !");
+				JOptionPane.showMessageDialog(mainWindow, "Le joueur "+name+"a gagné la partie !");
 			}
 			
 			// ou bien celui de la manche, et on recommence
@@ -173,6 +186,7 @@ public abstract class AbstractRoundPanel extends JPanel implements Runnable
 			}
 		}
 		while(!matchOver);
+		a.Terminate();
 	}
 	
 	/**
@@ -183,14 +197,14 @@ public abstract class AbstractRoundPanel extends JPanel implements Runnable
 	/**
 	 * Recalcule les points des joueurs en fonction des éliminations
 	 * qui se sont produites lors de la dernière itération. La fonction
-	 * renvoie aussi un booléen indiquant si la partie est finie ou pas.
+	 * renvoie aussi un booléen indiquant si la manche est finie ou pas.
 	 * 
 	 * @param prevEliminated
 	 * 		Liste des numéros des joueurs éliminés lors des itérations précédentes.
 	 * @param lastEliminated
 	 * 		Liste des numéros des joueurs éliminés lors de l'itération en cours.
 	 * @return
-	 * 		{@code true} ssi la partie doit se terminer.
+	 * 		{@code true} ssi la manche doit se terminer.
 	 */
 	protected boolean updatePoints(List<Integer> prevEliminated, List<Integer> lastEliminated)
 	{	boolean result = false;
@@ -233,7 +247,7 @@ public abstract class AbstractRoundPanel extends JPanel implements Runnable
 	 */
 	public synchronized void start()
 	{	running = true;
-		loopThread = new Thread(this,"Courbes -- Round");
+		loopThread = new Thread(this,"Courbes-Round");
 		loopThread.start();
 	}
 	
@@ -251,9 +265,18 @@ public abstract class AbstractRoundPanel extends JPanel implements Runnable
 	 * la partie, pour pouvoir enchaîner une autre manche.
 	 */
 	protected void resetRound()
-	{	graphicDisplay.reset();
+	{	keyManager.reset();
+		graphicDisplay.reset();
+	
+		Snake[] snakes = round.board.snakes;
+		boolean[] connected = new boolean[snakes.length];
+		for(int i=0;i<snakes.length;i++)
+			connected[i] = snakes[i].connected;
 		physicsEngine.init(round.players.length);
 		round.board = physicsEngine.getBoard();
+		snakes = round.board.snakes;
+		for(int i=0;i<snakes.length;i++)
+			snakes[i].connected = connected[i];
 		for(Player player: round.players)
 			player.roundScore = 0;
 		round.pointLimit = Constants.POINT_LIMIT_FOR_PLAYER_NBR.get(round.players.length);
@@ -265,7 +288,21 @@ public abstract class AbstractRoundPanel extends JPanel implements Runnable
 	 * joueurs en jeu et de leur score.
 	 */
 	protected void updatePointLimit()
-	{	// on ne fait pas varier la limite en cours de rencontre, mais c'est possible de le faire ici
+	{	// on ne fait pas varier la limite en cours de partie, mais c'est possible de le faire ici
 		round.pointLimit = Constants.POINT_LIMIT_FOR_PLAYER_NBR.get(round.players.length);
+	}
+	
+	/**
+	 * Met à jour la liste des valeurs indiquand qui
+	 * a été éliminé par qui.
+	 */
+	protected void updatedEliminatedBy()
+	{	Snake[] snakes = round.board.snakes;
+		eliminatedBy = new Integer[snakes.length];
+		for(int i=0;i<snakes.length;i++)
+		{	eliminatedBy[i] = snakes[i].eliminatedBy;
+			System.out.print(" "+eliminatedBy[i]);
+		}
+		System.out.println();
 	}
 }
